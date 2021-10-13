@@ -11,20 +11,29 @@ const Message = ({ message, user }) => {
       message.hasOwnProperty("image") && !message.hasOwnProperty("content")
     );
   };
+
+  const isMessageMine = (message, user) => {
+    return message.user.id === user.uid;
+  };
+
   return (
-    <Media style={{ marginBottom: "3px" }}>
+    <Media style={{ marginBottom: "3px", display: "flex" }}>
       <img
         style={{ borderRadius: "10px" }}
-        width={64}
-        height={64}
+        width={48}
+        height={48}
         className="mr-3"
-        src={message.user.image}
+        src={message.user.Image}
         alt={message.user.name}
       />
-      <Media.Body>
+
+      {/* message, user는 mainPanel에서 가져온것, 즉 보낸 사람이 아니라 currentUser이다. =>Me, message 정보 안에 보낸 사람의 정보가 있다. 보낸게 내것이 맞다면 gray색을 준다. */}
+      <Media.Body
+        style={{ backgroundColor: isMessageMine(message, user) && " #ffff00" }}
+      >
         <h6>
-          {message.user.name}
-          {""}
+          {/* 빈 문자열은 아이디와 시간 사이의 간격을 주기위함 */}
+          {message.user.name} {""}
           <span style={{ fontSize: "10px", color: "gray" }}>
             {timeFromNow(message.timestamp)}
           </span>

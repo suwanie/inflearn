@@ -3,6 +3,7 @@ import { FaRegSmileWink } from "react-icons/fa";
 import { FaPlus } from "react-icons/fa";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
+import Badge from "react-bootstrap/Badge";
 import Form from "react-bootstrap/Form";
 import { connect } from "react-redux";
 import firebase from "../../../firebase/firebase";
@@ -16,7 +17,10 @@ import {
   ref,
   update,
 } from "@firebase/database";
-import { setCurrentChatRoom } from "../../../redux/actions/user/chatRoom_action";
+import {
+  setCurrentChatRoom,
+  setPrivateChatRoom,
+} from "../../../redux/actions/user/chatRoom_action";
 export class ChatRooms extends Component {
   // name과 desc는 modal을 관리할 때 쓰 state로 관리해야 하기 때문에 만들어준다.
   state = {
@@ -108,6 +112,8 @@ export class ChatRooms extends Component {
 
   changeChatRoom = (room) => {
     this.props.dispatch(setCurrentChatRoom(room));
+    // false로 줘서 다시 public으로 오면 상대가 변하게
+    this.props.dispatch(setPrivateChatRoom(false));
     // 다른 것을 클릭했을 때 active로 state를 바꾼다.
     this.setState({ activeChatRoomId: room.id });
   };
@@ -127,6 +133,7 @@ export class ChatRooms extends Component {
         onClick={() => this.changeChatRoom(room)}
       >
         # {room.name}
+        <Badge variant="danger">1</Badge>
       </li>
     ));
 
