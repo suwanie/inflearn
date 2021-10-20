@@ -7,7 +7,7 @@ import Col from "react-bootstrap/Col";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import firebase from "../../../firebase/firebase";
-import { child, getDatabase, push, ref, set } from "@firebase/database";
+import { child, getDatabase, push, ref, remove, set } from "@firebase/database";
 import {
   getDownloadURL,
   getStorage,
@@ -16,6 +16,7 @@ import {
 } from "@firebase/storage";
 
 const MessageForm = () => {
+  const typingRef = ref(getDatabase(), "typing");
   const inputOpenImgRef = useRef();
 
   //useSelector로 특정 DOM?을 선택 -> ref비슷한듯? state의 chatRoom의 currentChatRoom를 선택
@@ -72,6 +73,8 @@ const MessageForm = () => {
     try {
       // 채팅방 id를 child로 넣어준다. chatroom.id는 redux에 채팅방을 클릭해보면 있는데 거기서 가져온다. ->useSelector 사용
       await set(push(child(messagesRef, chatRoom.id)), createMessage());
+      // typing이 진행되는 도중 typing이라는 child가 생기고, 이것을 sand로 보내면 다시 지워줘야 한다.
+      await remove(child(typingRef, `${chatRoom.id}/${user.uid}`));
       setLoading(false);
       setContent("");
       setErr([]);
@@ -159,12 +162,27 @@ const MessageForm = () => {
       console.log(err);
     }
   };
+  const handleKeyDown = (e) => {
+    /* if(e.ctrlKey&&e.keyCode ===13){
+      handleSubmit();
+    } */
+    const userUid = user.uid;
+    if (content) {
+      // getDatabase 할땐 Ref정의해주기
+      set(ref(getDatabase(), `typing/${chatRoom.id}/${user.uid}`), {
+        userUid: user.displayName,
+      });
+    } else {
+      remove(ref(getDatabase(), `typing/${chatRoom.id}/${user.uid}`));
+    }
+  };
 
   return (
     <div>
       <Form onSubmit={handleSubmit}>
         <Form.Group controlId="exampleForm.ControlTextarea1">
           <Form.Control
+            onKeyDown={handleKeyDown}
             as="textarea"
             row={3}
             value={content}

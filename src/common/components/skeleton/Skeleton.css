@@ -1,0 +1,19 @@
+.skeleton-avatar {
+  height: 35px;
+  width: 35px;
+  border-radius: 3px;
+  background-color: rgba(58, 57, 57, 0.3);
+}
+
+.skeleton-author {
+  background-color: rgba(58, 57, 57, 0.3);
+  width: 120px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.skeleton-description {
+  background-color: rgba(58, 57, 57, 0.3);
+  height: 20px;
+  border-radius: 3px;
+}

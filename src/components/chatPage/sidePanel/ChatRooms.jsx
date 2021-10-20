@@ -13,6 +13,7 @@ import {
   getDatabase,
   off,
   onChildAdded,
+  onValue,
   push,
   ref,
   update,
@@ -31,6 +32,9 @@ export class ChatRooms extends Component {
     chatRooms: [],
     firstLoad: true,
     activeChatRoomId: "",
+    // noti는 그냥 알림들을 담는 곳
+    notifications: [],
+    messagesRef: ref(getDatabase(), "messages"),
   };
 
   componentDidMount() {
@@ -44,7 +48,7 @@ export class ChatRooms extends Component {
 
   setFirstChatRoom = () => {
     const firstChatRoom = this.state.chatRooms[0];
-    // 챗 방이 하나 이상이여야 하기 때문에 length>0이다. 조건을 주는 이유는 방의 갯수만큼 첫 번째가 실행되는 것을 막기 위함인거 같다.
+    // 챗 방이 하나 이상이여야 하기 때문에 length>0이다. 조건을 주는 이유는 방의 개수만큼 첫 번째가 실행되는 것을 막기 위함인거 같다.
     if (this.state.firstLoad && this.state.chatRooms.length > 0) {
       // AddChatRoomsListeners여기에 state의 chatRooms의 배열에 있는 첫 번째 것을 넣어주면 된다.
       this.props.dispatch(setCurrentChatRoom(firstChatRoom));
@@ -54,9 +58,11 @@ export class ChatRooms extends Component {
     this.setState({ firstLoad: false });
   };
 
+  // datasnapshot안에 chatroom의 id가 포함되어 있다.
   AddChatRoomsListeners = () => {
     // chatroom은 배열로 되어 있어서, 지금 데이터 가져오는 것 하는것
     let chatRoomsArray = [];
+    // 이곳은 방을 만들때 생성되는 정보들이 db에 추가되고 그것을 chatRooms state에 넣어주는 곳이다.
     onChildAdded(this.state.chatRoomsRef, (DataSnapshot) => {
       chatRoomsArray.push(DataSnapshot.val());
       this.setState(
@@ -64,7 +70,72 @@ export class ChatRooms extends Component {
         // 처음 load했을 때 첫 번째 방이 바로 클릭될 수 있게
         () => this.setFirstChatRoom()
       );
+      // DataSnapshot.key이걸로 방의 id를 얻을것이다.
+      this.addNotificationListener(DataSnapshot.key);
     });
+  };
+
+  // DataSnapshot.key이게 chatRoomId라는 이름에 들어감 그럼 addNotificationListener여기엔 각각 방의 ID가 들어가 있음
+  addNotificationListener = (chatRoomId) => {
+    let { messagesRef } = this.state;
+    onValue(
+      child(messagesRef, chatRoomId),
+      // datasnapshot은 메세지 정보들
+      (DataSnapshot) => {
+        // 채팅룸이 있을 때만, chatRoom은 리덕스에서 가져옴
+        if (this.props.chatRoom) {
+          this.handleNotification(
+            chatRoomId,
+            this.props.chatRoom.id,
+            this.state.notifications,
+            DataSnapshot
+          );
+        }
+      }
+    );
+  };
+  // chatRoomId에는 현재의 챗룸 id가 아니라 각각의 방의 ID가 들어오는 것이다.
+  handleNotification = (
+    chatRoomId,
+    currentChatRoomId,
+    notifications,
+    DataSnapshot
+  ) => {
+    let lastTotal = 0;
+    // 목표는 각 방의 맞는 알림 정보를 noti state에 넣기
+    // notification.Id 여기에 chatRoomId 정보를 넣을것
+    let index = notifications.findIndex(
+      // 저 조건에 맞는게 없다면 -1를 반환한다. 그럼 해당 방의 정보가 없다는 거다..
+      (notification) => notification.id === chatRoomId
+    );
+    //noti state에 해당 채팅방의 정보가 없다면
+    if (index === -1) {
+      // 새로 만드는 것이기 때문에 total과 last가 같다.
+      notifications.push({
+        id: chatRoomId, //해당 채팅방 Id
+        total: DataSnapshot.size, //해당 채팅방 전체 메시지 개수
+        lastKnownTotal: DataSnapshot.size, //이전에 확인한 전체 메시지 개수
+        count: 0, //알림으로 사용될 숫자
+      });
+    }
+    // 반면 원래 있는 곳에 새로운 정보를 넣는 것이니 last와 total의 개수는 다를 수 밖에 없다.
+    else {
+      // 상대방이 채팅 보내는 그 해당 채팅방에 있지 않을 때
+      if (chatRoomId !== currentChatRoomId) {
+        // 현재까지 유저가 확인한 총 메시지 개수
+        lastTotal = notifications[index].lastKnownTotal;
+
+        //count (알림으로 보여줄 숫자)를 구하기
+        //현재 총 메시지 개수 - 이전에 확인한 총 메시지 개수 > 0
+        //현재 총 메시지 개수가 10개이고 이전에 확인한 메시지가 8개 였다면 2개를 알림으로 보여줘야함.
+        if (DataSnapshot.size - lastTotal > 0) {
+          notifications[index].count = DataSnapshot.size - lastTotal;
+        }
+      }
+      // total property에 현재 전체 메시지 개수 넣어주기
+      notifications[index].total = DataSnapshot.size;
+    }
+    this.setState({ notifications });
   };
 
   handleClose = () => this.setState({ show: false });
@@ -116,6 +187,35 @@ export class ChatRooms extends Component {
     this.props.dispatch(setPrivateChatRoom(false));
     // 다른 것을 클릭했을 때 active로 state를 바꾼다.
     this.setState({ activeChatRoomId: room.id });
+    this.clearNotification();
+  };
+
+  // this.props.chatRoom.id 현재 chatRoom의 Id이며 이 방의 id가 notis state안에 있는지 index를 통해 알게된다.
+  clearNotification = () => {
+    let index = this.state.notifications.findIndex(
+      (notification) => notification.id === this.props.chatRoom.id
+    );
+    //정보가 들어있다면
+    if (index !== -1) {
+      let updateNoti = [...this.state.notifications];
+      // index는 위에서 구한거
+      updateNoti[index].lastKnownTotal = this.state.notifications[index].total;
+      updateNoti[index].count = 0;
+      this.setState({ notifications: updateNoti });
+    }
+  };
+
+  // 해당 room의 정보를 인자로 받음
+  getNotificationCount = (room) => {
+    // 해당 채팅방의 count 수를 구하는 중
+    let count = 0;
+    // 여기 noti에 모든 방의 정보가 들어있다.
+    this.state.notifications.forEach((notification) => {
+      if (notification.id === room.id) {
+        count = notification.count;
+      }
+    });
+    if (count > 0) return count;
   };
 
   // chatRooms를 매개변수로 넣어줌, 여긴 지금 chatRoom list를 만들고 있는 중이다.
@@ -133,7 +233,9 @@ export class ChatRooms extends Component {
         onClick={() => this.changeChatRoom(room)}
       >
         # {room.name}
-        <Badge variant="danger">1</Badge>
+        <Badge color="danger" style={{ float: "right" }} variant="contained">
+          {this.getNotificationCount(room)}
+        </Badge>
       </li>
     ));
 
@@ -201,10 +303,10 @@ export class ChatRooms extends Component {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={this.handleClose}>
-              Close
+              닫기
             </Button>
             <Button variant="primary" onClick={this.handleSubmit}>
-              Create
+              생성
             </Button>
           </Modal.Footer>
         </Modal>
@@ -216,6 +318,7 @@ export class ChatRooms extends Component {
 const mapStateToProps = (state) => {
   return {
     user: state.user.currentUser,
+    chatRoom: state.chatRoom.currentChatRoom,
   };
 };
 

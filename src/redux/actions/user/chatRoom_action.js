@@ -1,4 +1,8 @@
-import { SET_CURRENT_CAHT_ROOM, SET_PRIVATE_CAHT_ROOM } from "./types";
+import {
+  SET_CURRENT_CAHT_ROOM,
+  SET_PRIVATE_CAHT_ROOM,
+  SET_USER_POSTS,
+} from "./types";
 
 export function setCurrentChatRoom(currentChatRoom) {
   return {
@@ -12,5 +16,12 @@ export function setPrivateChatRoom(isPrivateChatRoom) {
   return {
     type: SET_PRIVATE_CAHT_ROOM,
     payload: isPrivateChatRoom,
+  };
+}
+
+export function setUserPosts(userPosts) {
+  return {
+    type: SET_USER_POSTS,
+    payload: userPosts,
   };
 }

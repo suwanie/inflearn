@@ -1,22 +1,23 @@
 import React from "react";
-import MainPanel from "./mainPanel/MainPanel";
-import SIdePanel from "./sidePanel/SIdePanel";
+import SidePanel from "./sidePanel/SIdePanel";
 import { useSelector } from "react-redux";
+import MainPanel from "./mainPanel/MainPanel";
 
-const ChatPage = () => {
+function ChatPage() {
+  const currentUser = useSelector((state) => state.user.currentUser);
   const currentChatRoom = useSelector(
     (state) => state.chatRoom.currentChatRoom
   );
   return (
     <div style={{ display: "flex" }}>
       <div style={{ width: "300px" }}>
-        <SIdePanel />
+        <SidePanel key={currentUser && currentUser.uid} />
       </div>
       <div style={{ width: "100%" }}>
         <MainPanel key={currentChatRoom && currentChatRoom.id} />
       </div>
     </div>
   );
-};
+}
 
 export default ChatPage;
